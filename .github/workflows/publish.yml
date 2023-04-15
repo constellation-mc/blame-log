@@ -42,11 +42,11 @@ jobs:
           java: |
             17
 
-          modrinth-id:
+          modrinth-id: 6N4iGk9g
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
           modrinth-featured: true
           modrinth-unfeature-mode: subset
 
 
-          curseforge-id:
+          curseforge-id: 850931
           curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
