@@ -4,7 +4,7 @@
 
 ### What's this?
 
-This is a proof-of-concept mod, which patches Loggers to append method callers.
+This is a proof-of-concept mod, which patches Loggers to prepend method callers.
 
 Wandering which mod printed this?
 
