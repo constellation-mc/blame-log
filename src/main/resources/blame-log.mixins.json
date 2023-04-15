@@ -1,0 +1,6 @@
+{
+  "required": true,
+  "package": "me.melontini.blamelog.mixin",
+  "plugin": "me.melontini.blamelog.BlameLog",
+  "compatibilityLevel": "JAVA_17"
+}

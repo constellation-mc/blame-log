@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "id": "blame-log",
+  "version": "${version}",
+  "name": "BlameLog",
+  "description": "Blaming logs since 2023",
+  "authors": [
+    "melontini"
+  ],
+  "contact": {
+    "repo": "https://github.com/melontini/blame-log"
+  },
+  "license": "MIT",
+  "icon": "icon.png",
+  "environment": "*",
+  "entrypoints": {
+  },
+  "mixins": [
+    "blame-log.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": "*",
+    "minecraft": "*",
+    "cracker-util-danger": "*"
+  },
+  "custom": {
+    "cracker-util-danger:instrumentation": true
+  }
+}
