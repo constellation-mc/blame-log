@@ -2,6 +2,7 @@ package me.melontini.blamelog;
 
 import me.melontini.crackerutil.danger.instrumentation.InstrumentationAccess;
 import me.melontini.crackerutil.util.Utilities;
+import net.fabricmc.loader.api.FabricLoader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.spi.AbstractLogger;
@@ -99,7 +100,7 @@ public class BlameLog implements IMixinConfigPlugin {//we don't need ExtendedPlu
                     }
                 }
                 return node;
-            }, true, AbstractLogger.class, Log4jLogger.class);
+            }, FabricLoader.getInstance().isDevelopmentEnvironment(), AbstractLogger.class, Log4jLogger.class);
             LOGGER.info("[BlameLog] Hacking Loggers was successful, as you can see... Wait, I'm not \"java.lang.Class#forName0\" >:|");
             LOGGER.info("[BlameLog] Hacked {} methods", integer.get());
         } else {
