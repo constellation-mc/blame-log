@@ -2,7 +2,6 @@ package me.melontini.blamelog;
 
 import me.melontini.crackerutil.danger.instrumentation.InstrumentationAccess;
 import me.melontini.crackerutil.util.Utilities;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.spi.AbstractLogger;
@@ -13,14 +12,11 @@ import org.objectweb.asm.tree.*;
 import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class BlameLog implements IMixinConfigPlugin {//we don't need ExtendedPlugin
     private static final Logger LOGGER = LogManager.getLogger("BlameLog");
-    private static final StackWalker stackWalker = StackWalker.getInstance();
     static Set<String> allowedNames = Utilities.consume(new HashSet<>(), strings -> {
         strings.add("fatal");
         strings.add("error");
@@ -29,6 +25,10 @@ public class BlameLog implements IMixinConfigPlugin {//we don't need ExtendedPlu
         strings.add("log");
         //strings.add("debug");
         //strings.add("trace");
+    });
+
+    static Map<String, Integer> HARDCODED_INDEX_OFFSETS = Utilities.consume(new HashMap<>(), map -> {
+        map.put("(Lorg/slf4j/Marker;Ljava/lang/String;ILjava/lang/String;[Ljava/lang/Object;Ljava/lang/Throwable;)V", 2);//It gets called 3 times.
     });
 
     static {
@@ -46,19 +46,51 @@ public class BlameLog implements IMixinConfigPlugin {//we don't need ExtendedPlu
                         for (int i = 0; i < types.length; i++) {
                             Type type = types[i];
                             if ("java.lang.String".equals(type.getClassName())) {
+                                if (HARDCODED_INDEX_OFFSETS.containsKey(method.desc))
+                                    i += HARDCODED_INDEX_OFFSETS.get(method.desc);
                                 sIndex = i;
                                 break;
                             }
                         }
 
-                        if (sIndex == -1) continue;
+                        if (sIndex == -1) {//we know that there's no String parameter
+                            int objIndex = -1;
+                            for (int i = 0; i < types.length; i++) {
+                                Type type = types[i];
+                                if ("java.lang.Object".equals(type.getClassName())) {
+                                    objIndex = i;
+                                    break;
+                                }
+                            }
+
+                            if (objIndex == -1) continue;
+
+
+                            InsnList newInsn = new InsnList();
+                            for (AbstractInsnNode instruction : method.instructions) {
+                                if (instruction instanceof VarInsnNode varInsnNode) {
+                                    if (varInsnNode.var == objIndex + 1) {
+                                        newInsn.add(new LdcInsnNode("{}"));
+                                        newInsn.add(new MethodInsnNode(Opcodes.INVOKESTATIC, "me/melontini/blamelog/Util", "getMessage", "(Ljava/lang/String;)Ljava/lang/String;"));
+                                    }
+                                }
+                                if (instruction instanceof MethodInsnNode methodInsnNode) {
+                                    methodInsnNode.desc = methodInsnNode.desc.replaceFirst("Ljava/lang/Object;", "Ljava/lang/String;Ljava/lang/Object;").replace("Ljava/lang/Throwable;", "Ljava/lang/Object;");
+                                }
+                                newInsn.add(instruction);
+                            }
+                            method.instructions = newInsn;
+                            integer.getAndIncrement();
+
+                            continue;
+                        }
 
                         InsnList newInsn = new InsnList();
                         for (AbstractInsnNode instruction : method.instructions) {
                             newInsn.add(instruction);
                             if (instruction instanceof VarInsnNode varInsnNode) {
                                 if (varInsnNode.var == sIndex + 1) {
-                                    newInsn.add(new MethodInsnNode(Opcodes.INVOKESTATIC, "me/melontini/blamelog/BlameLog", "getMessage", "(Ljava/lang/String;)Ljava/lang/String;"));
+                                    newInsn.add(new MethodInsnNode(Opcodes.INVOKESTATIC, "me/melontini/blamelog/Util", "getMessage", "(Ljava/lang/String;)Ljava/lang/String;"));
                                 }
                             }
                         }
@@ -73,23 +105,6 @@ public class BlameLog implements IMixinConfigPlugin {//we don't need ExtendedPlu
         } else {
             LOGGER.error("[BlameLog] Instrumentation went to get some milk, but never came back...");
         }
-    }
-
-    public static String getMessage(String message) {
-        int depth = 3;
-        String name = getCallerName(depth);
-        while (StringUtils.containsAnyIgnoreCase(name, "log4j", "slf4j", "logger") || StringUtils.endsWithAny(name.split("#")[0], "Logger", "Log", "LogHelper", "LoggerAdapterAbstract")) {//hardcoded checks. This adds overhead and can have false-positives (like, mmm "BlameLog"), but it's better than useless "Log#info"
-            depth++;
-            name = getCallerName(depth);
-        }
-        return "[" + name + "] " + message;
-    }
-
-    public static String getCallerName(int depth) {
-        return stackWalker.walk(s -> {
-            var first = s.skip(depth).findFirst().orElse(null);
-            return first != null ? first.getClassName() + "#" + first.getMethodName() : "NoClassNameFound";
-        });
     }
 
     @Override
