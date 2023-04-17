@@ -30,6 +30,7 @@ jobs:
         uses: Kir-Antipov/mc-publish@v3.2
         with:
           version-type: beta
+          changelog-file: CHANGELOG.md
           name: ${{ env.VERSION_INFORMATION }}
           version: ${{ env.VERSION_PLAIN }}
 
