@@ -1,6 +1,7 @@
 package me.melontini.blamelog;
 
 import me.melontini.crackerutil.danger.instrumentation.InstrumentationAccess;
+import me.melontini.crackerutil.reflect.ReflectionUtil;
 import me.melontini.crackerutil.util.Utilities;
 import net.fabricmc.loader.api.FabricLoader;
 import org.apache.logging.log4j.LogManager;
@@ -13,6 +14,12 @@ import org.objectweb.asm.tree.*;
 import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.lang.instrument.Instrumentation;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.security.ProtectionDomain;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -35,6 +42,34 @@ public class BlameLog implements IMixinConfigPlugin {//we don't need ExtendedPlu
     static {
         if (InstrumentationAccess.canInstrument()) {
             LOGGER.info("[BlameLog] Trying to hack Loggers with Instrumentation");
+
+            try {
+                Class.forName("org.quiltmc.loader.api.QuiltLoader");
+                LOGGER.warn("[BlameLog] Quilt support is extremely hacky. Be ware!");
+
+                try (InputStream stream = Util.class.getClassLoader().getResourceAsStream("me/melontini/blamelog/Util.class")) {
+                    byte[] bytes = stream.readAllBytes();
+                    ClassLoader a = AbstractLogger.class.getClassLoader();
+                    Method define = ClassLoader.class.getDeclaredMethod("defineClass", String.class, byte[].class, int.class, int.class, ProtectionDomain.class);
+
+                    Module javaBase = ClassLoader.class.getModule();
+                    Instrumentation instr = InstrumentationAccess.getInstrumentation();
+                    if (instr.isModifiableModule(javaBase)) {
+                        LOGGER.warn("[BlameLog] Opening java.lang to UNKNOWN to make defineClass accessible");
+                        instr.redefineModule(javaBase, Set.of(), Map.of(), Map.of("java.lang", Set.of(Util.class.getModule())), Set.of(), Map.of());
+                        define.setAccessible(true);
+                    } else {
+                        LOGGER.warn("[BlameLog] Using unsafe to make defineClass accessible");
+                        ReflectionUtil.setAccessible(define);
+                    }
+
+                    define.invoke(a, "me.melontini.blamelog.Util", bytes, 0, bytes.length, Util.class.getProtectionDomain());
+                } catch (IOException | NoSuchMethodException | InvocationTargetException | IllegalAccessException e) {
+                    throw new RuntimeException(e);
+                }
+            } catch (ClassNotFoundException e) {
+            }
+
             AtomicInteger integer = new AtomicInteger();
             InstrumentationAccess.retransform(node -> {
                 for (MethodNode method : node.methods) {
