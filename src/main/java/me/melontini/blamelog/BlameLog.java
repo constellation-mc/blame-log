@@ -55,7 +55,7 @@ public class BlameLog implements IMixinConfigPlugin {//we don't need ExtendedPlu
                     Module javaBase = ClassLoader.class.getModule();
                     Instrumentation instr = InstrumentationAccess.getInstrumentation();
                     if (instr.isModifiableModule(javaBase)) {
-                        LOGGER.warn("[BlameLog] Opening java.lang to UNKNOWN to make defineClass accessible");
+                        LOGGER.warn("[BlameLog] Opening java.lang to UNNAMED to make defineClass accessible");
                         instr.redefineModule(javaBase, Set.of(), Map.of(), Map.of("java.lang", Set.of(Util.class.getModule())), Set.of(), Map.of());
                         define.setAccessible(true);
                     } else {
