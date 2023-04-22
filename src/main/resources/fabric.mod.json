@@ -20,8 +20,9 @@
   ],
   "depends": {
     "fabricloader": "*",
-    "minecraft": "*",
-    "cracker-util-danger": "*"
+    "minecraft": ">=1.18",
+    "cracker-util-danger": "*",
+    "cracker-util-base": "*"
   },
   "custom": {
     "cracker-util-danger:instrumentation": true
