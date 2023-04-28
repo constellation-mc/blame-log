@@ -57,7 +57,7 @@ java {
 
 tasks.register('printVersionName') {
     doLast {
-        println version.split("-")[0] + " (${version.split("-")[1]})"
+        println version.split("-")[0] + " (1.18-1.19.4)"
     }
 }
 

@@ -1,3 +1,4 @@
 # What's new:
 
-* Added experimental Quilt support.
+* Now multi-version(tm)
+* Updated CrackerUtil
