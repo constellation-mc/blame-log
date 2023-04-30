@@ -1,24 +1,36 @@
 package me.melontini.blamelog;
 
 import org.apache.commons.lang3.StringUtils;
+import org.spongepowered.asm.mixin.transformer.meta.MixinMerged;
+
+import java.lang.reflect.Method;
 
 public class Util {
-    private static final StackWalker stackWalker = StackWalker.getInstance();
+    private static final StackWalker stackWalker = StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE);
 
     public static String getMessage(String message) {
         int depth = 3;
-        String name = getCallerName(depth);
-        while (StringUtils.containsIgnoreCase(name, "log4j") || StringUtils.containsIgnoreCase(name, "slf4j") || StringUtils.containsIgnoreCase(name, "logger") || StringUtils.endsWithAny(name.split("#")[0], "Logger", "Log", "LogHelper", "LoggerAdapterAbstract")) {//hardcoded checks. This adds overhead and can have false-positives (like, mmm "BlameLog"), but it's better than useless "Log#info"
+        StackWalker.StackFrame frame = getCallerName(depth);
+        String name = frame.getClassName();
+        while (StringUtils.containsIgnoreCase(name, "log4j") || StringUtils.containsIgnoreCase(name, "slf4j") || StringUtils.containsIgnoreCase(name, "logger") || StringUtils.endsWithAny(name, "Logger", "Log", "LogHelper", "LoggerAdapterAbstract", "Logging") || "log".equals(frame.getMethodName())) {//hardcoded list of filters. While this might add overhead, it's better than undescriptive names.
             depth++;
-            name = getCallerName(depth);
+            frame = getCallerName(depth);
+            name = frame.getClassName();
         }
-        return "[" + name + "] " + message;
+        String methodName = frame.getMethodName();
+        if (frame.getClassName().startsWith("net.minecraft") && !StringUtils.equalsAny(methodName, "<init>", "<clinit>")) {
+            try {
+                Method m = frame.getDeclaringClass().getDeclaredMethod(methodName, frame.getMethodType().parameterArray());
+                MixinMerged mixin = m.getAnnotation(MixinMerged.class);
+                if (mixin != null) {
+                    return "[" + mixin.mixin() + "#" + methodName + "] " + message;
+                }
+            } catch (Exception ignored) {}//we don't care if this fails.
+        }
+        return "[" + frame.getClassName() + "#" + methodName + "] " + message;
     }
 
-    public static String getCallerName(int depth) {
-        return stackWalker.walk(s -> {
-            var first = s.skip(depth).findFirst().orElse(null);
-            return first != null ? first.getClassName() + "#" + first.getMethodName() : "NoClassNameFound";
-        });
+    public static StackWalker.StackFrame getCallerName(int depth) {
+        return stackWalker.walk(s -> s.skip(depth).findFirst().orElse(null));
     }
 }

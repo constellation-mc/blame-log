@@ -41,9 +41,9 @@ public class BlameLog implements IMixinConfigPlugin {//we don't need ExtendedPlu
 
     static {
         if (InstrumentationAccess.canInstrument()) {
-            LOGGER.info("[BlameLog] Trying to hack Loggers with Instrumentation");
+            LOGGER.info("[BlameLog] Retranforming Loggers...");
 
-            try {
+            try {//Quilt support
                 Class.forName("org.quiltmc.loader.api.QuiltLoader");
                 LOGGER.warn("[BlameLog] Quilt support is extremely hacky. Be ware!");
 
@@ -63,6 +63,7 @@ public class BlameLog implements IMixinConfigPlugin {//we don't need ExtendedPlu
                         ReflectionUtil.setAccessible(define);
                     }
 
+                    //Is there a better way to define a class on a different class loader?
                     define.invoke(a, "me.melontini.blamelog.Util", bytes, 0, bytes.length, Util.class.getProtectionDomain());
                 } catch (IOException | NoSuchMethodException | InvocationTargetException | IllegalAccessException e) {
                     throw new RuntimeException(e);
@@ -70,7 +71,7 @@ public class BlameLog implements IMixinConfigPlugin {//we don't need ExtendedPlu
             } catch (ClassNotFoundException e) {
             }
 
-            AtomicInteger integer = new AtomicInteger();
+            AtomicInteger integer = new AtomicInteger();//Keeping track of the number of methods we've retransformed. Not really necessary, but it's nice to know.
             InstrumentationAccess.retransform(node -> {
                 for (MethodNode method : node.methods) {
                     Type[] types = Type.getArgumentTypes(method.desc);
@@ -136,8 +137,7 @@ public class BlameLog implements IMixinConfigPlugin {//we don't need ExtendedPlu
                 }
                 return node;
             }, FabricLoader.getInstance().isDevelopmentEnvironment(), AbstractLogger.class, Log4jLogger.class);
-            LOGGER.info("[BlameLog] Hacking Loggers was successful, as you can see... Wait, I'm not \"java.lang.Class#forName0\" >:|");
-            LOGGER.info("[BlameLog] Hacked {} methods", integer.get());
+            LOGGER.info("[BlameLog] Successfully retransformed {} methods, as you can see... Wait, I'm not \"java.lang.Class#forName0\" >:|", integer.get());
         } else {
             LOGGER.error("[BlameLog] Instrumentation went to get some milk, but never came back...");
         }
