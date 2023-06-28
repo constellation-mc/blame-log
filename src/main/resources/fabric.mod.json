@@ -8,7 +8,9 @@
     "melontini"
   ],
   "contact": {
-    "repo": "https://github.com/melontini/blame-log"
+    "sources": "https://github.com/melontini/blame-log",
+    "issues": "https://github.com/melontini/blame-log/issues",
+    "homepage": "https://modrinth.com/mod/blame-log"
   },
   "license": "MIT",
   "icon": "icon.png",
@@ -21,10 +23,10 @@
   "depends": {
     "fabricloader": "*",
     "minecraft": ">=1.18",
-    "cracker-util-danger": "*",
-    "cracker-util-base": "*"
+    "dark-matter-danger": "*",
+    "dark-matter-base": "*"
   },
   "custom": {
-    "cracker-util-danger:instrumentation": true
+    "dark-matter-danger:instrumentation": true
   }
 }

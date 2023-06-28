@@ -29,7 +29,7 @@ jobs:
       - name: Publish Minecraft Mods
         uses: Kir-Antipov/mc-publish@v3.2
         with:
-          version-type: beta
+          version-type: release
           changelog-file: CHANGELOG.md
           name: ${{ env.VERSION_INFORMATION }}
           version: ${{ env.VERSION_PLAIN }}
@@ -43,6 +43,8 @@ jobs:
             1.19.2
             1.19.3
             1.19.4
+            1.20
+            1.20.1
 
           loaders: |
             fabric

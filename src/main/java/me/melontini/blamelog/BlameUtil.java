@@ -5,14 +5,19 @@ import org.spongepowered.asm.mixin.transformer.meta.MixinMerged;
 
 import java.lang.reflect.Method;
 
-public class Util {
+public class BlameUtil {
     private static final StackWalker stackWalker = StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE);
 
     public static String getMessage(String message) {
         int depth = 3;
         StackWalker.StackFrame frame = getCallerName(depth);
         String name = frame.getClassName();
-        while (StringUtils.containsIgnoreCase(name, "log4j") || StringUtils.containsIgnoreCase(name, "slf4j") || StringUtils.containsIgnoreCase(name, "logger") || StringUtils.endsWithAny(name, "Logger", "Log", "LogHelper", "LoggerAdapterAbstract", "Logging") || "log".equals(frame.getMethodName())) {//hardcoded list of filters. While this might add overhead, it's better than undescriptive names.
+        while (StringUtils.containsIgnoreCase(name, "log4j") ||
+                StringUtils.containsIgnoreCase(name, "slf4j") ||
+                StringUtils.containsIgnoreCase(name, "logger") ||
+                StringUtils.endsWithAny(name, "Logger", "Log", "LogHelper", "LoggerAdapterAbstract", "Logging") ||
+                "log".equals(frame.getMethodName())) {//hardcoded list of filters. While this might add overhead, it's better than undescriptive names.
+
             depth++;
             frame = getCallerName(depth);
             name = frame.getClassName();

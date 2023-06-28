@@ -1,8 +1,9 @@
 package me.melontini.blamelog;
 
-import me.melontini.crackerutil.danger.instrumentation.InstrumentationAccess;
-import me.melontini.crackerutil.reflect.ReflectionUtil;
-import me.melontini.crackerutil.util.Utilities;
+import me.melontini.dark_matter.danger.instrumentation.InstrumentationAccess;
+import me.melontini.dark_matter.reflect.ReflectionUtil;
+import me.melontini.dark_matter.util.MakeSure;
+import me.melontini.dark_matter.util.Utilities;
 import net.fabricmc.loader.api.FabricLoader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -23,7 +24,7 @@ import java.security.ProtectionDomain;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class BlameLog implements IMixinConfigPlugin {//we don't need ExtendedPlugin
+public class BlamePlugin implements IMixinConfigPlugin {
     private static final Logger LOGGER = LogManager.getLogger("BlameLog");
     static Set<String> allowedNames = Utilities.consume(new HashSet<>(), strings -> {
         strings.add("fatal");
@@ -35,20 +36,17 @@ public class BlameLog implements IMixinConfigPlugin {//we don't need ExtendedPlu
         //strings.add("trace");
     });
 
-    static Map<String, Integer> HARDCODED_INDEX_OFFSETS = Utilities.consume(new HashMap<>(), map -> {
-        map.put("(Lorg/slf4j/Marker;Ljava/lang/String;ILjava/lang/String;[Ljava/lang/Object;Ljava/lang/Throwable;)V", 2);//It gets called 3 times.
-    });
-
     static {
         if (InstrumentationAccess.canInstrument()) {
             LOGGER.info("[BlameLog] Retranforming Loggers...");
 
-            try {//Quilt support
-                Class.forName("org.quiltmc.loader.api.QuiltLoader");
-                LOGGER.warn("[BlameLog] Quilt support is extremely hacky. Be ware!");
+            if (AbstractLogger.class.getClassLoader() != BlamePlugin.class.getClassLoader()) {
+                LOGGER.warn("[BlameLog] AbstractLogger and BlamePlugin are on different classloaders!");
+                LOGGER.warn("[BlameLog] This means you're probably running Quilt. Be ware of issues!");
 
-                try (InputStream stream = Util.class.getClassLoader().getResourceAsStream("me/melontini/blamelog/Util.class")) {
-                    byte[] bytes = stream.readAllBytes();
+                try (InputStream stream = BlamePlugin.class.getClassLoader().getResourceAsStream("me/melontini/blamelog/BlameUtil.class")) {
+                    byte[] bytes = MakeSure.notNull(stream, "Can't access BlameUtil.class").readAllBytes();
+
                     ClassLoader a = AbstractLogger.class.getClassLoader();
                     Method define = ClassLoader.class.getDeclaredMethod("defineClass", String.class, byte[].class, int.class, int.class, ProtectionDomain.class);
 
@@ -56,7 +54,7 @@ public class BlameLog implements IMixinConfigPlugin {//we don't need ExtendedPlu
                     Instrumentation instr = InstrumentationAccess.getInstrumentation();
                     if (instr.isModifiableModule(javaBase)) {
                         LOGGER.warn("[BlameLog] Opening java.lang to UNNAMED to make defineClass accessible");
-                        instr.redefineModule(javaBase, Set.of(), Map.of(), Map.of("java.lang", Set.of(Util.class.getModule())), Set.of(), Map.of());
+                        instr.redefineModule(javaBase, Set.of(), Map.of(), Map.of("java.lang", Set.of(BlamePlugin.class.getModule())), Set.of(), Map.of());
                         define.setAccessible(true);
                     } else {
                         LOGGER.warn("[BlameLog] Using unsafe to make defineClass accessible");
@@ -64,11 +62,10 @@ public class BlameLog implements IMixinConfigPlugin {//we don't need ExtendedPlu
                     }
 
                     //Is there a better way to define a class on a different class loader?
-                    define.invoke(a, "me.melontini.blamelog.Util", bytes, 0, bytes.length, Util.class.getProtectionDomain());
+                    define.invoke(a, "me.melontini.blamelog.BlameUtil", bytes, 0, bytes.length, BlameUtil.class.getProtectionDomain());
                 } catch (IOException | NoSuchMethodException | InvocationTargetException | IllegalAccessException e) {
                     throw new RuntimeException(e);
                 }
-            } catch (ClassNotFoundException e) {
             }
 
             AtomicInteger integer = new AtomicInteger();//Keeping track of the number of methods we've retransformed. Not really necessary, but it's nice to know.
@@ -83,8 +80,8 @@ public class BlameLog implements IMixinConfigPlugin {//we don't need ExtendedPlu
                         for (int i = 0; i < types.length; i++) {
                             Type type = types[i];
                             if ("java.lang.String".equals(type.getClassName())) {
-                                if (HARDCODED_INDEX_OFFSETS.containsKey(method.desc))
-                                    i += HARDCODED_INDEX_OFFSETS.get(method.desc);
+                                if ("(Lorg/slf4j/Marker;Ljava/lang/String;ILjava/lang/String;[Ljava/lang/Object;Ljava/lang/Throwable;)V".equals(method.desc))
+                                    i += 2;
                                 sIndex = i;
                                 break;
                             }
@@ -108,7 +105,7 @@ public class BlameLog implements IMixinConfigPlugin {//we don't need ExtendedPlu
                                 if (instruction instanceof VarInsnNode varInsnNode) {
                                     if (varInsnNode.var == objIndex + 1) {
                                         newInsn.add(new LdcInsnNode("{}"));
-                                        newInsn.add(new MethodInsnNode(Opcodes.INVOKESTATIC, "me/melontini/blamelog/Util", "getMessage", "(Ljava/lang/String;)Ljava/lang/String;"));
+                                        newInsn.add(new MethodInsnNode(Opcodes.INVOKESTATIC, "me/melontini/blamelog/BlameUtil", "getMessage", "(Ljava/lang/String;)Ljava/lang/String;"));
                                     }
                                 }
                                 if (instruction instanceof MethodInsnNode methodInsnNode) {
@@ -127,7 +124,7 @@ public class BlameLog implements IMixinConfigPlugin {//we don't need ExtendedPlu
                             newInsn.add(instruction);
                             if (instruction instanceof VarInsnNode varInsnNode) {
                                 if (varInsnNode.var == sIndex + 1) {
-                                    newInsn.add(new MethodInsnNode(Opcodes.INVOKESTATIC, "me/melontini/blamelog/Util", "getMessage", "(Ljava/lang/String;)Ljava/lang/String;"));
+                                    newInsn.add(new MethodInsnNode(Opcodes.INVOKESTATIC, "me/melontini/blamelog/BlameUtil", "getMessage", "(Ljava/lang/String;)Ljava/lang/String;"));
                                 }
                             }
                         }
@@ -137,7 +134,7 @@ public class BlameLog implements IMixinConfigPlugin {//we don't need ExtendedPlu
                 }
                 return node;
             }, FabricLoader.getInstance().isDevelopmentEnvironment(), AbstractLogger.class, Log4jLogger.class);
-            LOGGER.info("[BlameLog] Successfully retransformed {} methods, as you can see... Wait, I'm not \"java.lang.Class#forName0\" >:|", integer.get());
+            LOGGER.info("Successfully retransformed {} methods.", integer.get());
         } else {
             LOGGER.error("[BlameLog] Instrumentation went to get some milk, but never came back...");
         }
