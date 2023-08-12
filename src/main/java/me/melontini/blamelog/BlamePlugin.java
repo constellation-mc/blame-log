@@ -1,9 +1,9 @@
 package me.melontini.blamelog;
 
-import me.melontini.dark_matter.danger.instrumentation.InstrumentationAccess;
-import me.melontini.dark_matter.reflect.ReflectionUtil;
-import me.melontini.dark_matter.util.MakeSure;
-import me.melontini.dark_matter.util.Utilities;
+import me.melontini.dark_matter.api.danger.instrumentation.InstrumentationAccess;
+import me.melontini.dark_matter.api.base.reflect.ReflectionUtil;
+import me.melontini.dark_matter.api.base.util.MakeSure;
+import me.melontini.dark_matter.api.base.util.Utilities;
 import net.fabricmc.loader.api.FabricLoader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
