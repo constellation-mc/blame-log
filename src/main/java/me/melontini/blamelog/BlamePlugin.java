@@ -42,7 +42,7 @@ public class BlamePlugin implements IMixinConfigPlugin {
 
             if (AbstractLogger.class.getClassLoader() != BlamePlugin.class.getClassLoader()) {
                 LOGGER.warn("[BlameLog] AbstractLogger and BlamePlugin are on different classloaders!");
-                LOGGER.warn("[BlameLog] This means you're probably running Quilt. Be ware of issues!");
+                LOGGER.warn("[BlameLog] This means you're probably running Quilt or Connector. Be ware of issues!");
 
                 try (InputStream stream = BlamePlugin.class.getClassLoader().getResourceAsStream("me/melontini/blamelog/BlameUtil.class")) {
                     byte[] bytes = MakeSure.notNull(stream, "Can't access BlameUtil.class").readAllBytes();
@@ -60,6 +60,8 @@ public class BlamePlugin implements IMixinConfigPlugin {
                         LOGGER.warn("[BlameLog] Using unsafe to make defineClass accessible");
                         ReflectionUtil.setAccessible(define);
                     }
+
+                    instr.redefineModule(AbstractLogger.class.getModule(), Set.of(a.getUnnamedModule()), Map.of(), Map.of(), Set.of(), Map.of());
 
                     //Is there a better way to define a class on a different class loader?
                     define.invoke(a, "me.melontini.blamelog.BlameUtil", bytes, 0, bytes.length, BlameUtil.class.getProtectionDomain());
