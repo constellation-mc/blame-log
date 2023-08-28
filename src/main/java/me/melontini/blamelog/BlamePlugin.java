@@ -61,6 +61,7 @@ public class BlamePlugin implements IMixinConfigPlugin {
                         ReflectionUtil.setAccessible(define);
                     }
 
+                    //Thanks Su5eD for the fix. https://github.com/Sinytra/Connector/discussions/12#discussioncomment-6790140
                     instr.redefineModule(AbstractLogger.class.getModule(), Set.of(a.getUnnamedModule()), Map.of(), Map.of(), Set.of(), Map.of());
 
                     //Is there a better way to define a class on a different class loader?
