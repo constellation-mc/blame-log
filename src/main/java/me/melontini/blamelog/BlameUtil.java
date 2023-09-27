@@ -1,28 +1,12 @@
 package me.melontini.blamelog;
 
 import org.apache.commons.lang3.StringUtils;
+import org.spongepowered.asm.mixin.transformer.meta.MixinMerged;
 
-import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 
 public class BlameUtil {
     private static final StackWalker stackWalker = StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE);
-    private static final Class<? extends Annotation> MixinMerged;
-    private static final Method mixinMethod;
-
-    static {
-        Class<? extends Annotation> c = null;
-        try {
-            c = (Class<? extends Annotation>) Class.forName("org.spongepowered.asm.mixin.transformer.meta.MixinMerged");
-        } catch (Exception ignored) {}
-        MixinMerged = c;
-        Method m = null;
-        try {
-            m = c.getMethod("mixin");
-            m.setAccessible(true);
-        } catch (Exception ignored) {}
-        mixinMethod = m;
-    }
 
     public static String getMessage(String message) {
         int depth = 3;
@@ -42,9 +26,9 @@ public class BlameUtil {
         if (frame.getClassName().startsWith("net.minecraft") && !StringUtils.equalsAny(methodName, "<init>", "<clinit>")) {
             try {
                 Method m = frame.getDeclaringClass().getDeclaredMethod(methodName, frame.getMethodType().parameterArray());
-                Object mixin = m.getAnnotation(MixinMerged);
+                MixinMerged mixin = m.getAnnotation(MixinMerged.class);
                 if (mixin != null) {
-                    return "[" + mixinMethod.invoke(mixin)+ "#" + methodName + "] " + message;
+                    return "[" + mixin.mixin() + "#" + methodName + "] " + message;
                 }
             } catch (Exception ignored) {}//we don't care if this fails.
         }
