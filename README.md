@@ -24,18 +24,24 @@ Well, now you know!
 
 ### How does this work?
 
-This uses InstrumentationAccess from [CrackerUtil's Danger](https://github.com/melontini/cracker-util/wiki/Danger) to patch AbstractLogger and Log4jLogger.
+This uses InstrumentationAccess from [Dark Matter's Danger](https://github.com/melontini/dark-matter/wiki/Danger) to patch AbstractLogger and Log4jLogger.
 
 Note that this mod tries to dig deeper into the stack if it detects Logger classes.
 The logic behind this is super simple.
 
 ```java
-   while (StringUtils.containsAnyIgnoreCase(name, "log4j", "slf4j", "logger") || StringUtils.endsWithAny(name.split("#")[0], "Logger", "Log", "LogHelper", "LoggerAdapterAbstract")) {
-      depth++;
-      name = getCallerName(depth);
-   }
+        StackWalker.StackFrame frame = getCallerName(depth);
+        String name = frame.getClassName();
+        while (StringUtils.containsIgnoreCase(name, "log4j") ||
+                StringUtils.containsIgnoreCase(name, "slf4j") ||
+                StringUtils.containsIgnoreCase(name, "logger") ||
+                StringUtils.endsWithAny(name, "Logger", "Log", "LogHelper", "LoggerAdapterAbstract", "Logging") ||
+                "log".equals(frame.getMethodName())) {
+
+            depth++;
+            frame = getCallerName(depth);
+            name = frame.getClassName();
+        }
 ```
 
 So expect false-positives, like mmm BlameLog...
-
-See the only class in this mod for more info.
