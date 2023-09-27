@@ -15,8 +15,11 @@ import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.ProtectionDomain;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -28,6 +31,7 @@ public class BlamePlugin implements IMixinConfigPlugin {
         if (InstrumentationAccess.canInstrument()) {
             LOGGER.info("[BlameLog] Retranforming Loggers...");
 
+            Class<?> blameUtil;
             if (AbstractLogger.class.getClassLoader() != BlamePlugin.class.getClassLoader()) {
                 LOGGER.warn("[BlameLog] AbstractLogger and BlamePlugin are on different classloaders!");
                 LOGGER.warn("[BlameLog] This means you're probably running Quilt or Connector. Be ware of issues!");
@@ -39,14 +43,34 @@ public class BlamePlugin implements IMixinConfigPlugin {
                     //Thanks Su5eD for the fix. https://github.com/Sinytra/Connector/discussions/12#discussioncomment-6790140
                     InstrumentationAccess.addReads(AbstractLogger.class.getModule(), a.getUnnamedModule());
 
-                    tryDefineClass(a, "me.melontini.blamelog.BlameUtil", bytes, BlameUtil.class.getProtectionDomain());
+                    blameUtil = tryDefineClass(a, "me.melontini.blamelog.BlameUtil", bytes, BlameUtil.class.getProtectionDomain());
                 } catch (IOException | NoSuchMethodException | InvocationTargetException | IllegalAccessException e) {
                     throw new RuntimeException(e);
                 }
+            } else {
+                blameUtil = BlameUtil.class;
             }
 
+            try {
+                String pattern = "[{simpleClass}#{method}] {message}";
+                Path path = FabricLoader.getInstance().getConfigDir().resolve("blamelog-pattern.txt");
+                if (!Files.exists(path)) {
+                    Files.createDirectories(path.getParent());
+                    Files.writeString(path, pattern);
+                } else {
+                    pattern = Files.readString(path);
+                }
+
+                Field field = blameUtil.getField("pattern");
+                field.setAccessible(true);
+                field.set(null, pattern);
+            } catch (Throwable t) {
+                LOGGER.error("[BlameLog] Failed to set pattern. Using default", t);
+            }
+
+
             AtomicInteger integer = new AtomicInteger();//Keeping track of the number of methods we've retransformed. Not really necessary, but it's nice to know.
-            InstrumentationAccess.retransform(node -> LogPatcher.patch(node,  integer),
+            InstrumentationAccess.retransform(node -> LogPatcher.patch(node, integer),
                     FabricLoader.getInstance().isDevelopmentEnvironment(),
                     AbstractLogger.class, Log4jLogger.class);
             LOGGER.info("Successfully retransformed {} methods.", integer.get());
@@ -57,9 +81,9 @@ public class BlamePlugin implements IMixinConfigPlugin {
 
     private static Method defineClass;
 
-    private static void tryDefineClass(ClassLoader a, String name, byte[] bytes, ProtectionDomain domain) throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+    private static Class<?> tryDefineClass(ClassLoader a, String name, byte[] bytes, ProtectionDomain domain) throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
         try {
-            MiscReflection.defineClass(a, name, bytes, BlameUtil.class.getProtectionDomain());
+            return MiscReflection.defineClass(a, name, bytes, BlameUtil.class.getProtectionDomain());
         } catch (Throwable t ) {
             if (defineClass == null)
                 defineClass = ClassLoader.class.getDeclaredMethod("defineClass", String.class, byte[].class, int.class, int.class, ProtectionDomain.class);
@@ -77,7 +101,7 @@ public class BlamePlugin implements IMixinConfigPlugin {
             }
 
             //Is there a better way to define a class on a different class loader?
-            defineClass.invoke(a, name, bytes, 0, bytes.length, domain);
+            return (Class<?>) defineClass.invoke(a, name, bytes, 0, bytes.length, domain);
         }
     }
 
