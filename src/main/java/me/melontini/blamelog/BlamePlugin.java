@@ -4,6 +4,7 @@ import me.melontini.dark_matter.api.base.reflect.MiscReflection;
 import me.melontini.dark_matter.api.base.reflect.Reflect;
 import me.melontini.dark_matter.api.danger.instrumentation.InstrumentationAccess;
 import me.melontini.dark_matter.api.base.util.MakeSure;
+import me.melontini.dark_matter.api.danger.instrumentation.TransformationException;
 import net.fabricmc.loader.api.FabricLoader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -70,9 +71,13 @@ public class BlamePlugin implements IMixinConfigPlugin {
 
 
             AtomicInteger integer = new AtomicInteger();//Keeping track of the number of methods we've retransformed. Not really necessary, but it's nice to know.
-            InstrumentationAccess.retransform(node -> LogPatcher.patch(node, integer),
-                    FabricLoader.getInstance().isDevelopmentEnvironment(),
-                    AbstractLogger.class, Log4jLogger.class);
+            try {
+                InstrumentationAccess.retransform(node -> LogPatcher.patch(node, integer),
+                        FabricLoader.getInstance().isDevelopmentEnvironment(),
+                        AbstractLogger.class, Log4jLogger.class);
+            } catch (TransformationException e) {
+                throw new RuntimeException("[BlameLog] Failed to retransform loggers", e);
+            }
             LOGGER.info("Successfully retransformed {} methods.", integer.get());
         } else {
             LOGGER.error("[BlameLog] Instrumentation went to get some milk, but never came back...");
