@@ -1,6 +1,17 @@
 
 name: publish
-on: [workflow_dispatch]
+on:
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: "The type of this version. e.g alpha"
+        type: choice
+        default: beta
+        options:
+          - release
+          - beta
+          - alpha
+        required: false
 
 jobs:
   publish:
@@ -26,13 +37,13 @@ jobs:
       - name: Publish Minecraft Mods
         uses: Kir-Antipov/mc-publish@v3.3
         with:
-          version-type: release
+          version-type: ${{ inputs.version_type }}
           changelog-file: CHANGELOG.md
           name: ${{ env.VERSION_INFORMATION }}
           version: ${{ env.VERSION_PLAIN }}
 
           game-versions: |
-            >=1.18 <=1.20.1
+            >=1.18 <=1.20.4
 
           loaders: |
             fabric
@@ -40,8 +51,9 @@ jobs:
           java: |
             17
 
-          github-tag: v${{ env.VERSION_PLAIN }}
+          github-tag: ${{ env.VERSION_PLAIN }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-commitish: ${{ github.sha }}
           github-prerelease: false
 
           modrinth-id: 6N4iGk9g
