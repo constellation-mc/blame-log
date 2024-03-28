@@ -1,16 +1,16 @@
 package me.melontini.blamelog;
 
-import me.melontini.dark_matter.api.base.reflect.MiscReflection;
 import me.melontini.dark_matter.api.base.reflect.Reflect;
-import me.melontini.dark_matter.api.danger.instrumentation.InstrumentationAccess;
+import me.melontini.dark_matter.api.base.reflect.UnsafeUtils;
 import me.melontini.dark_matter.api.base.util.MakeSure;
-import me.melontini.dark_matter.api.danger.instrumentation.TransformationException;
+import me.melontini.dark_matter.api.instrumentation.InstrumentationAccess;
+import me.melontini.dark_matter.api.instrumentation.TransformationException;
 import net.fabricmc.loader.api.FabricLoader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.spi.AbstractLogger;
 import org.apache.logging.slf4j.Log4jLogger;
-import org.objectweb.asm.tree.*;
+import org.objectweb.asm.tree.ClassNode;
 import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
 
@@ -22,7 +22,9 @@ import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.ProtectionDomain;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class BlamePlugin implements IMixinConfigPlugin {
@@ -88,7 +90,7 @@ public class BlamePlugin implements IMixinConfigPlugin {
 
     private static Class<?> tryDefineClass(ClassLoader a, String name, byte[] bytes, ProtectionDomain domain) throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
         try {
-            return MiscReflection.defineClass(a, name, bytes, BlameUtil.class.getProtectionDomain());
+            return UnsafeUtils.defineClass(a, name, bytes, BlameUtil.class.getProtectionDomain());
         } catch (Throwable t ) {
             if (defineClass == null)
                 defineClass = ClassLoader.class.getDeclaredMethod("defineClass", String.class, byte[].class, int.class, int.class, ProtectionDomain.class);

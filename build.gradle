@@ -1,10 +1,15 @@
 plugins {
-    id 'fabric-loom' version '1.0-SNAPSHOT'
+    id 'fabric-loom' version '1.5-SNAPSHOT'
     id 'maven-publish'
 }
 
-version = project.mod_version
+def local = !System.getenv().containsKey("GITHUB_RUN_NUMBER")
+
+version = "${project.mod_version}-${project.minecraft_version}-${local ? 'local' : "build.${System.getenv("GITHUB_RUN_NUMBER")}"}"
 group = project.maven_group
+
+apply from: "https://raw.githubusercontent.com/constellation-mc/artifacts/main/artifacts.groovy"
+constellationRepo(project, "dark-matter")
 
 repositories {
     maven {
@@ -18,9 +23,9 @@ dependencies {
     mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
 
-    def dmModules = ["base", "danger"]
+    def dmModules = ["base", "instrumentation"]
     for (final def module in dmModules) {
-        modApi include("me.melontini.dark-matter:dark-matter-${module}:${project.dark_matter}")
+        modApi include("me.melontini:dark-matter-${module}:${project.dark_matter}")
     }
 }
 
@@ -59,7 +64,7 @@ java {
 
 tasks.register('printVersionName') {
     doLast {
-        println version.split("-")[0] + " (1.18-1.20.1)"
+        println project.mod_version + " (1.18-1.20.4)"
     }
 }
 
@@ -85,9 +90,13 @@ publishing {
 
     // See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
     repositories {
-        // Add repositories to publish to here.
-        // Notice: This block does NOT have the same function as the block in the top level.
-        // The repositories here will be used for publishing your artifact, not for
-        // retrieving dependencies.
+        maven {
+            name = "GitHubPackages"
+            url = "https://maven.pkg.github.com/constellation-mc/blame-log"
+            credentials {
+                username = System.getenv("GITHUB_ACTOR")
+                password = System.getenv("GITHUB_TOKEN")
+            }
+        }
     }
 }

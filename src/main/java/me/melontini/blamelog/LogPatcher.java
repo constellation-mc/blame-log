@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class LogPatcher {
 
-    private static final Set<String> allowedNames = Utilities.consume(new HashSet<>(), strings -> {
+    private static final Set<String> allowedNames = Utilities.supply(new HashSet<>(), strings -> {
         strings.add("fatal");
         strings.add("error");
         strings.add("warn");
