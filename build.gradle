@@ -34,6 +34,15 @@ dependencies {
     }
 }
 
+spotless {
+    java {
+        removeUnusedImports()
+        palantirJavaFormat('2.47.0').style("GOOGLE")
+        trimTrailingWhitespace()
+        formatAnnotations()
+    }
+}
+
 processResources {
     inputs.property "version", project.version
     filteringCharset "UTF-8"
