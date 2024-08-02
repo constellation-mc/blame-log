@@ -1,0 +1,13 @@
+[versions]
+dark-matter = "4.1.1-1.20.1-build.90"
+
+[libraries]
+fabric-loader = { group = "net.fabricmc", name = "fabric-loader", version = "0.16.0" }
+
+dark-matter-base = { group = "me.melontini", name = "dark-matter-base", version.ref = "dark-matter" }
+dark-matter-instrumentation = { group = "me.melontini", name = "dark-matter-instrumentation", version.ref = "dark-matter" }
+
+[plugins]
+fabric-loom = { id = "fabric-loom", version = "1.7.2" }
+spotless = { id = "com.diffplug.spotless", version = "6.25.0" }
+modmuss50-publish = { id = "me.modmuss50.mod-publish-plugin", version = "0.6.2" }

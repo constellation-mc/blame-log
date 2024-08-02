@@ -1,6 +1,10 @@
+import me.modmuss50.mpp.ReleaseType
+
 plugins {
-    id 'fabric-loom' version '1.7-SNAPSHOT'
+    alias libs.plugins.fabric.loom
     id 'maven-publish'
+    alias libs.plugins.spotless
+    alias libs.plugins.modmuss50.publish
 }
 
 def local = !System.getenv().containsKey("GITHUB_RUN_NUMBER")
@@ -21,11 +25,12 @@ dependencies {
     // To change the versions see the gradle.properties file
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
     mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
-    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation libs.fabric.loader
 
-    def dmModules = ["base", "instrumentation"]
-    for (final def module in dmModules) {
-        modApi include("me.melontini:dark-matter-${module}:${project.dark_matter}")
+    def dm = libs.dark.matter
+    [dm.base, dm.instrumentation].each {
+        modApi it
+        include it
     }
 }
 
@@ -62,18 +67,6 @@ java {
     withSourcesJar()
 }
 
-tasks.register('printVersionName') {
-    doLast {
-        println project.mod_version + " (1.18-1.21)"
-    }
-}
-
-tasks.register('printVersion') {
-    doLast {
-        println version
-    }
-}
-
 jar {
     from("LICENSE") {
         rename { "${it}_${project.archivesBaseName}" }
@@ -99,4 +92,47 @@ publishing {
             }
         }
     }
+}
+
+publishMods {
+    file = remapJar.archiveFile
+    additionalFiles.from(remapSourcesJar.archiveFile)
+
+    changelog = file("CHANGELOG.md").text
+    type = ReleaseType.valueOf(providers.environmentVariable("VERSION_TYPE").getOrElse("BETA"))
+    modLoaders.add("fabric")
+
+    displayName = "${project.mod_version} (1.18-1.21)"
+
+    modrinth {
+        projectId = "6N4iGk9g"
+        accessToken = providers.environmentVariable("MODRINTH_TOKEN")
+
+        minecraftVersionRange {
+            start = "1.18"
+            end = "latest"
+        }
+
+        embeds("dark-matter")
+    }
+    curseforge {
+        projectId = "850931"
+        accessToken = providers.environmentVariable("CURSEFORGE_TOKEN")
+
+        minecraftVersionRange {
+            start = "1.18"
+            end = "latest"
+        }
+
+        embeds("dark-matter")
+    }
+    github {
+        repository = "constellation-mc/blame-log"
+        accessToken = providers.environmentVariable("GITHUB_TOKEN")
+        commitish = providers.environmentVariable("GITHUB_SHA").orElse("multi-version-fabric")
+
+        type = STABLE
+    }
+
+    dryRun = local
 }
