@@ -1,3 +1,4 @@
 ## What's new:
 
-* Updated Dark Matter
+* Updated Dark Matter to fix a crash.
+* Some minor internal refactors.
