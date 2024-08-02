@@ -4,8 +4,11 @@ import org.apache.commons.lang3.StringUtils;
 import org.spongepowered.asm.mixin.transformer.meta.MixinMerged;
 
 import java.lang.reflect.Method;
-import java.util.Map;
+import java.util.*;
 import java.util.function.BiFunction;
+import java.util.function.Predicate;
+
+import static org.apache.commons.lang3.StringUtils.containsIgnoreCase;
 
 public class BlameUtil {
     private static final StackWalker stackWalker = StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE);
@@ -13,17 +16,45 @@ public class BlameUtil {
     private static final Map<String, BiFunction<StackWalker.StackFrame, MixinMerged, String>> patterns = Map.of(
             "{class}", (frame, mixin) -> mixin == null ? frame.getClassName() : mixin.mixin(),
             "{method}", (frame, mixin) -> frame.getMethodName(),
-            "{simpleClass}", (frame, mixin) -> simpleClassName(mixin == null ? frame.getClassName() : mixin.mixin()),
+            "{simpleClass}", (frame, mixin) -> mixin == null ? simpleClassName(frame.getDeclaringClass()) : simpleClassName(mixin.mixin()),
             "{methodParams}",  (frame, mixin) -> {
                 Class<?>[] params = frame.getMethodType().parameterArray();
-                String[] paramNames = new String[params.length];
-                for (int i = 0; i < params.length; i++) {
-                    paramNames[i] = simpleClassName(params[i].getName());
+                if (params.length == 0) return "";
+
+                StringJoiner joiner = new StringJoiner(",");
+                for (Class<?> param : params) {
+                    joiner.add(simpleClassName(param));
                 }
-                return StringUtils.join(paramNames, ",");
+                return joiner.toString();
             },
-            "{methodReturnType}", (frame, mixin) -> simpleClassName(frame.getMethodType().returnType().getName())
+            "{methodReturnType}", (frame, mixin) -> simpleClassName(frame.getMethodType().returnType())
     );
+
+    private static final List<Predicate<StackWalker.StackFrame>> filters;
+
+    static {
+        List<Predicate<StackWalker.StackFrame>> base = new ArrayList<>();
+
+        base.add(frame -> "log".equals(frame.getMethodName()));
+
+        String[] classContains = new String[] {"log4j", "slf4j", "logger"};
+        base.add(frame -> {
+            for (String string : classContains) {
+                if (containsIgnoreCase(frame.getClassName(), string)) return true;
+            }
+            return false;
+        });
+
+        String[] classEnds = new String[] {"Logger", "Log", "LogHelper", "LoggerAdapterAbstract", "Logging"};
+        base.add(frame -> {
+            for (String string : classEnds) {
+                if (StringUtils.endsWith(frame.getClassName(), string)) return true;
+            }
+            return false;
+        });
+
+        filters = List.copyOf(base);
+    }
 
     public static String pattern = "[{simpleClass}#{method}] {message}";
 
@@ -32,28 +63,24 @@ public class BlameUtil {
         return split[split.length - 1];
     }
 
-    public static String getMessage(String msg) {
-        int depth = 3;
-        StackWalker.StackFrame frame = getCallerName(depth);
-        String name = frame.getClassName();
-        while (StringUtils.containsIgnoreCase(name, "log4j") ||
-                StringUtils.containsIgnoreCase(name, "slf4j") ||
-                StringUtils.containsIgnoreCase(name, "logger") ||
-                StringUtils.endsWithAny(name, "Logger", "Log", "LogHelper", "LoggerAdapterAbstract", "Logging") ||
-                "log".equals(frame.getMethodName())) {//hardcoded list of filters. While this might add overhead, it's better than undescriptive names.
+    private static String simpleClassName(Class<?> cls) {
+        if (cls.isPrimitive()) return cls.getName();
+        return cls.getName().substring(cls.getPackageName().length() + 1);
+    }
 
-            depth++;
-            frame = getCallerName(depth);
-            name = frame.getClassName();
-        }
+    public static String getMessage(String msg) {
+        StackWalker.StackFrame frame = firstMatching();
         String methodName = frame.getMethodName();
 
         MixinMerged mixin = null;
         if (frame.getClassName().startsWith("net.minecraft") && !StringUtils.equalsAny(methodName, "<init>", "<clinit>")) {
-            try {
-                Method m = frame.getDeclaringClass().getDeclaredMethod(methodName, frame.getMethodType().parameterArray());
-                mixin = m.getAnnotation(MixinMerged.class);
-            } catch (Exception ignored) {}//we don't care if this fails.
+            var params = frame.getMethodType().parameterArray();
+            for (Method method : frame.getDeclaringClass().getDeclaredMethods()) {
+                if (!method.getName().equals(methodName)) continue;
+                if (method.getParameterCount() != params.length) continue;
+                if (!Arrays.equals(params, method.getParameterTypes())) continue;
+                mixin = method.getAnnotation(MixinMerged.class);
+            }
         }
 
         String message = pattern;
@@ -63,7 +90,12 @@ public class BlameUtil {
         return message.replace("{message}", msg);
     }
 
-    public static StackWalker.StackFrame getCallerName(int depth) {
-        return stackWalker.walk(s -> s.skip(depth).findFirst().orElse(null));
+    public static StackWalker.StackFrame firstMatching() {
+        return stackWalker.walk(s -> s.skip(3).dropWhile(frame -> {
+            for (Predicate<StackWalker.StackFrame> filter : filters) {
+                if (filter.test(frame)) return true;
+            }
+            return false;
+        }).findFirst()).orElse(null);
     }
 }

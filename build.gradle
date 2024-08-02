@@ -1,5 +1,5 @@
 plugins {
-    id 'fabric-loom' version '1.6-SNAPSHOT'
+    id 'fabric-loom' version '1.7-SNAPSHOT'
     id 'maven-publish'
 }
 
@@ -64,7 +64,7 @@ java {
 
 tasks.register('printVersionName') {
     doLast {
-        println project.mod_version + " (1.18-1.20.4)"
+        println project.mod_version + " (1.18-1.21)"
     }
 }
 
